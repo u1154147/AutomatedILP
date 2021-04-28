@@ -1,4 +1,4 @@
-#!/usr/bin/python 
+#!/usr/bin/env python3
 
 import matplotlib.pyplot as plt
 import os
@@ -40,18 +40,11 @@ def main(argv):
     # check_inputs(edgelist_path, mem_usage, objective) 
 
     try:  
-        temp_graph = nx.read_weighted_edgelist(edgelist_path)
+        G = nx.read_weighted_edgelist(edgelist_path, create_using=nx.DiGraph)
 
     except FileNotFoundError:
         print("Unable to locate edge list. Please enter correct file location.")
         sys.exit()
-
-    #print(list(G.edges(data=True)))
-
-    G = nx.DiGraph()
-    for (u, v, data) in temp_graph.edges(data=True):
-        G.add_edge(u, v, weight=data['weight'])
-
 
     options = {
         'node_size': 1500,
@@ -60,13 +53,68 @@ def main(argv):
     }
 
 
-    edge_labels=dict([((u,v,),int(d['weight'])) for u,v,d in G.edges(data=True)]) # Mainly used to get only the weight out of the 'weight' dict. 
+    crit_path_len = find_crit_path(G)
+    gen = nx.algorithms.dag.all_topological_sorts(G)
 
-    pos = nx.spring_layout(G)
-    nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels)
-    nx.draw(G, pos=pos, with_labels=True, **options)
-    plt.show()
+    source, sink = create_src_sink_nodes(G) # Adding nodes no longer makes the graph a DAG (acyclic) anymore, for some reason.
+
+    all_paths = nx.all_simple_paths(G, source='SRC', target='SINK')
+
+    crit_paths = []
+    non_crit_paths = []
+    for path in all_paths:
+        path = path[1:-1]
+        if len(path) == crit_path_len:
+            crit_paths.append(path)
+
+        else:
+            non_crit_paths.append(path)
+
+    # edge_labels=dict([((u,v,),int(d['weight'])) for u,v,d in G.edges(data=True)]) # Mainly used to get only the weight out of the 'weight' dict. 
+    # pos = nx.spiral_layout(G)
+    # nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels)
+    # nx.draw(G, pos=pos, with_labels=True, **options)
+    # plt.show()
+
+def check_edge_weight(G: nx.DiGraph, max_mem: int):
+    for edge in G.edges(data=True):
+        weight = edge[:-1]
+
+        if weight > max_mem:
+            return edge, False
+
+    return True
+
+
     
+# Create source and sink nodes.
+def create_src_sink_nodes(G: nx.DiGraph):
+    src = G.add_node('SRC')
+    sink = G.add_node('SINK')
+    for node in G.nodes:
+        iter_pre = G.predecessors(node)
+        iter_suc = G.successors(node)
+        l_pre = list(iter_pre)
+        l_suc = list(iter_suc)
+
+        if len(l_pre) == 0:
+            G.add_edge('SRC', node, weight=0)
+
+        elif len(l_suc) == 0:
+            G.add_edge(node, 'SINK', weight=0)
+
+    return src, sink
+
+def find_crit_path(G: nx.DiGraph):
+    path = nx.algorithms.dag.dag_longest_path_length(G, weight=None, default_weight=1)
+    return path + 1
+
+
+def generate_dependency_graph(G: nx.DiGraph):
+    NotImplemented
+
+def generate_ILP(G: nx.DiGraph):
+    NotImplemented
 
 
 def check_inputs(edgelist_path, mem_usage, objective):
