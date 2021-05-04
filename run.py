@@ -25,15 +25,10 @@ def main(argv):
         print("Unable to locate edge list. Please enter correct file location.")
         sys.exit(2)
 
-    # options = {
-    #     'node_size': 1500,
-    #     'arrowstyle': '-|>',
-    #     'arrowsize': 12,
-    # }
 
     crit_path_len = find_crit_path(G)
     gen = nx.algorithms.dag.all_topological_sorts(G)
-    write_ILP_file(G, max_latency)
+    write_ILP_file(G, max_latency, max_memory, objective=objective)
 
     source, sink = create_src_sink_nodes(G) # Adding nodes no longer makes the graph a DAG (acyclic) anymore, for some reason.
 
@@ -51,11 +46,6 @@ def main(argv):
 
     # sys.exit(0)
 
-    # edge_labels=dict([((u,v,),int(d['weight'])) for u,v,d in G.edges(data=True)]) # Mainly used to get only the weight out of the 'weight' dict. 
-    # pos = nx.spiral_layout(G)
-    # nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels)
-    # nx.draw(G, pos=pos, with_labels=True, **options)
-    # plt.show()
 
 def read_args(argv):
     edgelist_path = ''
@@ -70,7 +60,7 @@ def read_args(argv):
         print ('usage: ' + sys.argv[0] + '-i <input edgelist file> -m <max memory usage allowed> -o <objective> -l <latency>')
         return
 
-    for opt, arg in opts: # Check command-line inputs
+    for opt, arg in opts: # Parse command-line inputs
         if opt == '-h':
             print ('usage: ' + sys.argv[0] + '-i <input edgelist file> -m <max memory usage allowed> -o <objective> -l <latency>')
             sys.exit(1)
@@ -87,37 +77,38 @@ def read_args(argv):
         elif opt in ('-l', '--latency'):
             latency = arg
 
-    print(objective)
     return edgelist_path, max_memory, objective, latency
 
 
-def check_edge_weight(G: nx.DiGraph, max_mem: int):
-    for edge in G.edges(data=True):
-        weight = edge[:-1]
-
-        if weight > max_mem:
-            return edge, False
-
-    return True
-
-def write_ILP_file(G: nx.DiGraph, max_latency: int, name = 'ilp_output.lp'):
+def write_ILP_file(G: nx.DiGraph, max_latency = None, mem_constraint = None, objective = 'latency', name = 'ilp_output.lp'):
     with open(name, 'w') as f:
         to_write = []
 
         nodes, variables_generated = generate_ILP_nodes(G, max_latency)
 
-        header = generate_ILP_header(variables_generated, None)
+        header = generate_ILP_header(variables_generated, objective=objective)
 
-        edges = generate_ILP_edges(G, max_latency)
+        if (max_latency is not None):
+            edges = generate_ILP_edges(G, max_latency)
+
+        if (mem_constraint is not None):
+            weights = generate_ILP_memconstraint(G, mem_constraint, max_latency, objective)
 
         floor = generate_ILP_floor(variables_generated)
 
         footer = generate_ILP_footer(variables_generated)
 
+
         to_write.append(header)
         to_write.append(nodes)
-        to_write.append(edges)
+
+        if (max_latency is not None):
+            to_write.append(edges)
+
         to_write.append(floor)
+        if (mem_constraint is not None):
+            to_write.append(weights)
+
         to_write.append(footer)
 
         for l in to_write:
@@ -125,16 +116,21 @@ def write_ILP_file(G: nx.DiGraph, max_latency: int, name = 'ilp_output.lp'):
                 f.write(line)
 
 
-def generate_ILP_header(variables: set, objective: str):
+def generate_ILP_header(variables: set, objective = 'latency'):
     lines = []
     lines.append('Minimize\n')
 
     line = line_start # + 'obj: '
 
-    for variable in variables:
-        line += variable[-1] + variable + ' + '
+    if objective == 'latency':
+        for variable in variables:
+            line += variable[-1] + variable + ' + '
 
-    line = line[:-3] + '\n'
+        line = line[:-3] + '\n'
+
+    elif objective == 'memory':
+        line += 'min_memory\n'
+
     lines.append(line)
 
     lines.append('Subject to\n')
@@ -180,6 +176,48 @@ def generate_ILP_edges(G: nx.DiGraph, max_latency):
         line_count += 1
 
     return lines
+
+def generate_ILP_memconstraint(G: nx.DiGraph, mem_constraint, max_latency, objective):
+    lines = []
+    line_count = 0
+    out_edges = G.out_edges(data=True)
+
+    for i in range(1, int(max_latency) + 1):
+        line = '' 
+        for node in G.nodes:
+            total = 0
+            for u, v, w in out_edges:
+                if u == node:
+                    total +=  int(w['weight'])
+
+            if objective == 'latency':
+                var = str(total) + 'x' + node + '_' + str(i)
+                line += var + ' + '
+
+            elif objective == 'memory':
+                var = str(total) + 'x' + node + '_' + str(i)
+                line += var + ' - '
+
+        final = line_start + 'w' + str(i) + ': '
+        if objective == 'latency':
+            final += line[:-2] + '<= ' + str(mem_constraint) + '\n'
+
+        elif objective == 'memory':
+            # final = line[:-2] + '= ' + 'mem' + str(i) + '\n'
+            final += 'mem' + str(i) + ' - ' + line[:-2] + '= 0\n'
+
+        lines.append(final)
+
+    if objective == 'memory':
+        for i in range(1, int(max_latency) + 1):
+            line = line_start + 'm' + str(i) + ': '
+
+            line += 'mem' + str(i) + ' - min_memory <= 0\n'
+            lines.append(line)
+
+    return lines
+
+
 
 def generate_ILP_floor(variables: set):
     lines = []

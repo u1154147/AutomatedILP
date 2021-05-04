@@ -11,10 +11,13 @@ def main():
 
     G = nx.read_weighted_edgelist('rand_DFG_s10_1.edgelist', create_using=nx.DiGraph)
     
-    l = run.generate_ILP_edges(G)
+    print(G.out_edges(data=True))
 
-    print(l)
+    test = run.generate_ILP_memconstraint(G, 20)
 
+
+    for l in test:
+        print(l)
 
 if __name__ == '__main__':
     main()
