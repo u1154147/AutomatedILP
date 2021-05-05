@@ -296,7 +296,7 @@ def generate_ILP_footer(variables: set):
 
 # This checks if we have valid inputs, as in that we have a file path
 # an objective, latency and (if needed) memory constraints.
-def check_inputs(edgelist_path, mem_usage, objective):
+def check_inputs(edgelist_path, mem_usage, objective, latency):
     if edgelist_path == '':
         print('Please specify path to edge list.')
         sys.exit(1)
