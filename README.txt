@@ -10,6 +10,7 @@ Latency L and memory M are 2 input arguments in our tool, which requires us to m
 the memory under latency L and minimize latency under memory M. 
 We can use L and M for ML-RC scheduling or MR-LC scheduling.
 
+Make sure GLPK files are in the same folder with our code before run following command.
 To use this, use the command shown below:
 py3 run.py -i <input edgelist file name> -m <max memory usage requirement> -o <objective> -l<latency requirement> 
 
