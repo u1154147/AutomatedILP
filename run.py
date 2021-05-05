@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
-import matplotlib.pyplot as plt
 import os
 import sys
 import getopt
 import networkx as nx
-from networkx.drawing.nx_agraph import graphviz_layout, to_agraph
 
 
 line_start = '  '
@@ -25,31 +23,29 @@ def main(argv):
         print("Unable to locate edge list. Please enter correct file location.")
         sys.exit(2)
 
+    # Perform checks if graph is obviously not feasible.
+    # Reports to user issue found.
+    feasible, val = is_feasible(G, max_memory, max_latency)    
+    if feasible == 'mem':
+        print('Given memory constraints are not feasible.')
+        print('Found edge with memory requirements: ' + str(val))
+        sys.exit(3)
+
+    elif feasible == 'lat':
+        print('Given latency constraints are not feasible.')
+        print('Found longest path length: ' + str(val))
+        sys.exit(3)
 
     crit_path_len = find_crit_path(G)
     gen = nx.algorithms.dag.all_topological_sorts(G)
     write_ILP_file(G, max_latency, max_memory, objective=objective)
-
-    source, sink = create_src_sink_nodes(G) # Adding nodes no longer makes the graph a DAG (acyclic) anymore, for some reason.
-
-    all_paths = nx.all_simple_paths(G, source='SRC', target='SINK')
-
-    crit_paths = []
-    non_crit_paths = []
-    for path in all_paths:
-        path = path[1:-1]
-        if len(path) == crit_path_len:
-            crit_paths.append(path)
-
-        else:
-            non_crit_paths.append(path)
 
     # sys.exit(0)
 
 
 def read_args(argv):
     edgelist_path = ''
-    max_memory = 0
+    max_memory = -1
     objective = ''
     opts = []
     latency = 0
@@ -80,7 +76,31 @@ def read_args(argv):
     return edgelist_path, max_memory, objective, latency
 
 
-def write_ILP_file(G: nx.DiGraph, max_latency = None, mem_constraint = None, objective = 'latency', name = 'ilp_output.lp'):
+def is_feasible(G: nx.DiGraph, max_mem: int, max_latency: int):
+    out_edges = G.out_edges(data=True)
+
+    if max_mem != -1:
+        for i in range(1, int(max_latency) + 1):
+            line = '' 
+            for node in G.nodes:
+                total = 0
+                for u, v, w in out_edges:
+                    if u == node:
+                        total +=  int(w['weight'])
+
+                if total > int(max_mem):
+
+                    return 'mem', int(total) 
+
+    # Latency check
+    longest_path = nx.dag_longest_path_length(G, weight=None, default_weight=1) + 1
+    if int(max_latency) < longest_path:
+        return 'lat', longest_path
+
+    return 'feasible', None
+
+
+def write_ILP_file(G: nx.DiGraph, max_latency = None, mem_constraint = -1, objective = 'latency', name = 'ilp_output.lp'):
     with open(name, 'w') as f:
         to_write = []
 
@@ -91,7 +111,7 @@ def write_ILP_file(G: nx.DiGraph, max_latency = None, mem_constraint = None, obj
         if (max_latency is not None):
             edges = generate_ILP_edges(G, max_latency)
 
-        if (mem_constraint is not None):
+        if (mem_constraint != -1):
             weights = generate_ILP_memconstraint(G, mem_constraint, max_latency, objective)
 
         floor = generate_ILP_floor(variables_generated)
@@ -106,7 +126,7 @@ def write_ILP_file(G: nx.DiGraph, max_latency = None, mem_constraint = None, obj
             to_write.append(edges)
 
         to_write.append(floor)
-        if (mem_constraint is not None):
+        if (mem_constraint != -1):
             to_write.append(weights)
 
         to_write.append(footer)
@@ -271,12 +291,13 @@ def check_inputs(edgelist_path, mem_usage, objective):
         print('Please specify path to edge list.')
         sys.exit(1)
 
-    if mem_usage == 0:
-        print('Please specify maximum memory usage.')
-        sys.exit(1)
+    # if mem_usage == 0:
+    #     print('Please specify maximum memory usage.')
+    #     sys.exit(1)
 
     if objective == '' or (objective != 'latency' and objective != 'memory'):
-        print('Please specify an objective.')
+        print('Please specify an objective. Allowed objectives:')
+        print('latency\nmemory')
         sys.exit(1)
     
 
