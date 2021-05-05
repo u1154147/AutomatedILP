@@ -19,7 +19,7 @@ We can use L and M for ML-RC scheduling or MR-LC scheduling.
 # Command
 Make sure GLPK files are in the same folder with our code before run following command.
 
-use command: sudo apt install glpk-utils
+Use command: sudo apt install glpk-utils
 
 To use this, use the command shown below:
 
