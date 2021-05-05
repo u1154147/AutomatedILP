@@ -292,6 +292,9 @@ def generate_ILP_footer(variables: set):
     line += '\n'
     lines.append(line)
 
+    line = 'end\n'
+    lines.append(line)
+
     return lines
 
 # This checks if we have valid inputs, as in that we have a file path
