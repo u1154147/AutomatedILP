@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Bash script to generate ILP file from generate_ilp.py, then feed ILP file into glpk.
 run_py() {
 
 	if [ -z $3 ]
