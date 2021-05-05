@@ -8,7 +8,7 @@ import networkx as nx
 
 line_start = '  '
 
-
+# The main function that reads in the given file as a Directed Acyclic Graph(DAG), calls functions to build and finally write to a LP file
 def main(argv):
     args = sys.argv
 
@@ -40,13 +40,12 @@ def main(argv):
         print('Found longest path length: ' + str(val))
         sys.exit(3)
 
-    crit_path_len = find_crit_path(G)
     gen = nx.algorithms.dag.all_topological_sorts(G)
     write_ILP_file(G, max_latency, max_memory, objective=objective)
 
     sys.exit(0)
 
-
+# Read_args reads in the arguments given by the command line, returning them to be used in other functions.
 def read_args(argv):
     edgelist_path = ''
     max_memory = -1
@@ -80,6 +79,9 @@ def read_args(argv):
     return edgelist_path, max_memory, objective, latency
 
 
+# is_feasible checks if the given graph can be minimized using the given constraints
+# It checks the largest sum of all edges of a single node against the largest memory constraint.
+# It also checks the longest path against the maximum latency.
 def is_feasible(G: nx.DiGraph, max_mem: int, max_latency: int):
     out_edges = G.out_edges(data=True)
 
@@ -97,13 +99,14 @@ def is_feasible(G: nx.DiGraph, max_mem: int, max_latency: int):
                     return 'mem', int(total) 
 
     # Latency check
+    # Have to add 1 to the return value as it's counting edges, not the actual number of nodes which is what we need
     longest_path = nx.dag_longest_path_length(G, weight=None, default_weight=1) + 1
     if int(max_latency) < longest_path:
         return 'lat', longest_path
 
     return 'feasible', None
 
-
+# write_ILP_file writes all the lists generated into an actual lp format file for GLPK to solve.
 def write_ILP_file(G: nx.DiGraph, max_latency = None, mem_constraint = -1, objective = 'latency', name = 'ilp_output.lp'):
     with open(name, 'w') as f:
         to_write = []
@@ -139,7 +142,8 @@ def write_ILP_file(G: nx.DiGraph, max_latency = None, mem_constraint = -1, objec
             for line in l:
                 f.write(line)
 
-
+# generate_ILP_header creates the LP format headers of Minimize depending
+# on the given objective and creates the Subject To section for the constraints
 def generate_ILP_header(variables: set, objective = 'latency'):
     lines = []
     lines.append('Minimize\n')
@@ -161,7 +165,9 @@ def generate_ILP_header(variables: set, objective = 'latency'):
 
     return lines
 
-
+# generate_ILP_nodes iterates through all nodes to generate a LP constraint like:
+# c1: x1_1 + x1_2 + x1_3 = 1 . This ensures that a node only exists once in the entire 
+# solution when GLPK solves it.
 def generate_ILP_nodes(G: nx.DiGraph, max_latency):
     lines = [] 
     variables = set() 
@@ -180,6 +186,9 @@ def generate_ILP_nodes(G: nx.DiGraph, max_latency):
 
     return lines, variables
 
+# generate_ILP_edges iterates through all edges to generate a LP constraint like:
+# e1: x2_1 + x_2_2 - x1_1 - x1_2 >= 1 . This ensures that dependent nodes come after
+# their dependencies. 
 def generate_ILP_edges(G: nx.DiGraph, max_latency):
     lines = []
     line_count = 0
@@ -201,6 +210,17 @@ def generate_ILP_edges(G: nx.DiGraph, max_latency):
 
     return lines
 
+# generate_ILP_memconstraint iterates through all the edges of all individual nodes to 
+# generate a LP constraint for ML-RC like: 
+# w1: 3x1_1 + 4x2_1 <= 7  
+
+# or LP constraints for MR-LC:
+# w1: mem1 - 3x1_1 - 4x2_1 = 0
+# m1: mem1 - min_memory <= 0;
+
+# In the former case this ensures that the sum of all edges coming from one node do not exceed
+# the maximum memory constraint. In the latter case it optimizes to find the minimum memory for
+# a latency constraint.
 def generate_ILP_memconstraint(G: nx.DiGraph, mem_constraint, max_latency, objective):
     lines = []
     line_count = 0
@@ -241,8 +261,13 @@ def generate_ILP_memconstraint(G: nx.DiGraph, mem_constraint, max_latency, objec
 
     return lines
 
+# generate_ILP_floor iterates through all the generated variables from the
+# other functions to create LP constraints like:
+# x1_1 >= 0
+# x1_2 >= 0
 
-
+# This is to make sure that these variables only take on positive values or zero
+# as negative values would not be meaningful.
 def generate_ILP_floor(variables: set):
     lines = []
     i = 0
@@ -253,6 +278,9 @@ def generate_ILP_floor(variables: set):
     
     return lines
 
+# generate_ILP_footer iterates through all the variables created by the other
+# functions and adds them to the bottom as integers, this is to ensure we do not
+# get fractional answers from GLPK, only integers.
 def generate_ILP_footer(variables: set):
     lines = []
 
@@ -266,13 +294,9 @@ def generate_ILP_footer(variables: set):
 
     return lines
 
-
-def find_crit_path(G: nx.DiGraph):
-    path = nx.algorithms.dag.dag_longest_path_length(G, weight=None, default_weight=1)
-    return path + 1
-
-
-def check_inputs(edgelist_path, mem_usage, objective, latency):
+# This checks if we have valid inputs, as in that we have a file path
+# an objective, latency and (if needed) memory constraints.
+def check_inputs(edgelist_path, mem_usage, objective):
     if edgelist_path == '':
         print('Please specify path to edge list.')
         sys.exit(1)
@@ -291,6 +315,6 @@ def check_inputs(edgelist_path, mem_usage, objective, latency):
         print('latency\nmemory')
         sys.exit(1)
     
-
+# Allows running the python script through a shell or other means.
 if __name__ == "__main__":
     main(sys.argv[1:])
