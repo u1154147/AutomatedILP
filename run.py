@@ -36,7 +36,6 @@ def main(argv):
         print('Found longest path length: ' + str(val))
         sys.exit(3)
 
-    crit_path_len = find_crit_path(G)
     gen = nx.algorithms.dag.all_topological_sorts(G)
     write_ILP_file(G, max_latency, max_memory, objective=objective)
 
@@ -257,7 +256,6 @@ def generate_ILP_memconstraint(G: nx.DiGraph, mem_constraint, max_latency, objec
             lines.append(line)
 
     return lines
-
 
 # generate_ILP_floor iterates through all the generated variables from the
 # other functions to create LP constraints like:
