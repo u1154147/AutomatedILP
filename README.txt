@@ -15,3 +15,5 @@ py3 run.py -i <input edgelist file name> -m <max memory usage requirement> -o <o
 
 Notice: We consider latency as a constraints since we don't want to make the file too large.
 
+Additional resource: GLPK https://www.gnu.org/software/glpk/
+
