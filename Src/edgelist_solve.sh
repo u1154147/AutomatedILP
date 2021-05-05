@@ -6,7 +6,7 @@ run_py() {
 	if [ -z $3 ]
 	then
 		echo 'Invalid number of arguments. Please see usage requirements.'
-		python3 run.py -h
+		python3 generate_ilp.py -h
 
 	elif [ -z $4 ]  # memory usage not specified
 	then
