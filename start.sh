@@ -29,7 +29,7 @@ do
 		m) memory=${OPTARG};;
 		o) objective=${OPTARG};;
 		l) latency=${OPTARG};;
-		h) run_py -h; exit;;
+		h) python3 run.py -h; exit;;
 	esac
 done
 
