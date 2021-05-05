@@ -25,6 +25,10 @@ To use this, use the command shown below:
 
 py3 run.py -i <input edgelist file name> -m <max memory usage requirement> -o <objective> -l<latency requirement> 
 
+OR
+
+./start.sh -i <edgelist file name> -l <num you want to enter> -o latency
+
 Notice: We consider latency as a constraints since we don't want to make the file too large.
 
 # Additional resource
