@@ -1,5 +1,27 @@
 #!/bin/bash
 
+run_py() {
+
+	if [ -z $3 ]
+	then
+		echo 'Invalid number of arguments. Please see usage requirements.'
+		python3 run.py -h
+
+	elif [ -z $4 ]  # memory usage not specified
+	then
+		python3 run.py -i $1 -o $2 -l $3 
+
+	else
+		python3 run.py -i $1 -m $2 -o $3 -l $4 
+
+	fi
+}
+
+run_glpk() {
+
+	glpsol --cpxlp ilp_output.lp -o output.txt > error.txt
+}
+
 while getopts hi:m:o:l: flag
 do
 	case "${flag}" in
@@ -7,13 +29,27 @@ do
 		m) memory=${OPTARG};;
 		o) objective=${OPTARG};;
 		l) latency=${OPTARG};;
-		h) help_flag=${OPTARG};;
+		h) run_py -h; exit;;
 	esac
 done
 
-python3 run.py -i $file -m $memory -o $objective -l $latency
+run_py $file $memory $objective $latency 
 
-echo 'Created "ilp_output.lp".'
-./glpk-4.35/examples/glpsol --cpxlp ilp_output.lp -o output.txt
-echo 'GLP Solution in "output.txt"'
+if [ $? -eq 0 ]
+then
+	echo 'Created "ilp_output.lp". Running glpk...'
+	run_glpk
+
+	if [ $? -gt 0 ]
+	then
+		echo 'ERROR! glpk ran into issue! Check "error.txt" file.'
+	else
+		rm error.txt
+		echo 'GLP Solution in "output.txt"'
+	fi
+
+elif [ $? -eq 1 ]
+then
+	exit
+fi
 

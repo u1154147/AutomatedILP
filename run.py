@@ -14,7 +14,11 @@ def main(argv):
 
     edgelist_path, max_memory, objective, max_latency = read_args(argv)
 
-    check_inputs(edgelist_path, max_memory, objective) 
+    check_inputs(edgelist_path, max_memory, objective, max_latency) 
+
+    if max_memory == -1 and objective == 'memory':
+        print('Maximum memory is required to be specified when optimizing for memory. Use -m <memory limit>.')
+        sys.exit(1)
 
     try:  
         G = nx.read_weighted_edgelist(edgelist_path, create_using=nx.DiGraph)
@@ -40,7 +44,7 @@ def main(argv):
     gen = nx.algorithms.dag.all_topological_sorts(G)
     write_ILP_file(G, max_latency, max_memory, objective=objective)
 
-    # sys.exit(0)
+    sys.exit(0)
 
 
 def read_args(argv):
@@ -53,12 +57,12 @@ def read_args(argv):
         opts, args = getopt.getopt(argv, "hi:m:o:l:", ["ifile=", "memory-usage=", "objective=", "latency="]) # Get command-line inputs
     
     except getopt.GetoptError:
-        print ('usage: ' + sys.argv[0] + '-i <input edgelist file> -m <max memory usage allowed> -o <objective> -l <latency>')
-        return
+        print ('usage: ' + sys.argv[0] + ' -i <input edgelist file> -m <max memory usage allowed> -o <objective> -l <latency>')
+        sys.exit(1)
 
     for opt, arg in opts: # Parse command-line inputs
         if opt == '-h':
-            print ('usage: ' + sys.argv[0] + '-i <input edgelist file> -m <max memory usage allowed> -o <objective> -l <latency>')
+            print ('usage: ' + sys.argv[0] + ' -i <input edgelist file> -m <max memory usage allowed> -o <objective> -l <latency>')
             sys.exit(1)
 
         elif opt in ("-i", "--ifile"):
@@ -262,38 +266,25 @@ def generate_ILP_footer(variables: set):
 
     return lines
 
-    
-# Create source and sink nodes.
-def create_src_sink_nodes(G: nx.DiGraph):
-    src = G.add_node('SRC')
-    sink = G.add_node('SINK')
-    for node in G.nodes:
-        iter_pre = G.predecessors(node)
-        iter_suc = G.successors(node)
-        l_pre = list(iter_pre)
-        l_suc = list(iter_suc)
-
-        if len(l_pre) == 0:
-            G.add_edge('SRC', node, weight=0)
-
-        elif len(l_suc) == 0:
-            G.add_edge(node, 'SINK', weight=0)
-
-    return src, sink
 
 def find_crit_path(G: nx.DiGraph):
     path = nx.algorithms.dag.dag_longest_path_length(G, weight=None, default_weight=1)
     return path + 1
 
 
-def check_inputs(edgelist_path, mem_usage, objective):
+def check_inputs(edgelist_path, mem_usage, objective, latency):
     if edgelist_path == '':
         print('Please specify path to edge list.')
         sys.exit(1)
 
-    # if mem_usage == 0:
-    #     print('Please specify maximum memory usage.')
-    #     sys.exit(1)
+    # Check if memory usage can be interpreted as an integer.
+    if not str(mem_usage).isnumeric() and mem_usage != -1:
+        print ('Please set your memory usage to an integer.')
+        sys.exit(1)
+
+    if not str(latency).isnumeric():
+        print ('Please set your latency usage to an integer.')
+        sys.exit(1)
 
     if objective == '' or (objective != 'latency' and objective != 'memory'):
         print('Please specify an objective. Allowed objectives:')
