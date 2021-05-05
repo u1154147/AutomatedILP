@@ -1,7 +1,4 @@
 # AutomatedILP
-
-Authors: Jake Steers - u1327208 && Ye Zhou - u1220084 && Zach Phelan u1154147
-
 Version: May 4th, 2021
 
 This tool is designed for automatically ILP scheduling to show ILP solving results.
