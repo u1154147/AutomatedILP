@@ -24,13 +24,13 @@ glpk is used to solve the ILP formulations. To install, run the following comman
 Once glpk is installed, we are ready to generate ILP files and solve them.
 To generate an ILP file from the edgelist, use ```generate_ilp.py```:
 
-```python3 run.py -i <input edgelist file name> -m <max memory usage requirement> -o <objective> -l <latency requirement> ```
+```python3 generate_ilp.py -i <input edgelist file name> -m <max memory usage requirement> -o <objective> -l <latency requirement> ```
 
 OR
 
 To generate an ILP file from the edgelist and feed to GLPK for solving, use ```edgelist_solve.sh```.
 
-```./start.sh -i <edgelist file name> -l <latenct constraint> -o <objective to minimize> -m <memory constraint> -f <optional output filename> ```
+```./edgelist_solve.sh -i <edgelist file name> -l <latenct constraint> -o <objective to minimize> -m <memory constraint> -f <optional output filename> ```
 
 Note:
   - Available objectives are (match case):
